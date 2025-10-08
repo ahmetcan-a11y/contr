@@ -56,6 +56,8 @@ contract TokenSale is ReentrancyGuard, AccessControl, Pausable {
     error InvalidTimeRange();
     error ZeroAddress();
     error ZeroAmount();
+    error ProjectTokenPaused();
+    error ProjectTokenMaxSupplyExceeded();
 
     /**
      * @dev Constructor
@@ -136,6 +138,16 @@ contract TokenSale is ReentrancyGuard, AccessControl, Pausable {
             revert ExceedsMaxTokensPerWallet();
         }
 
+        // This prevents users from losing USDT if minting fails
+        if (projectToken.paused()) {
+            revert ProjectTokenPaused();
+        }
+        
+        // Check if minting would exceed max supply
+        if (projectToken.totalSupply() + tokenAmount > projectToken.MAX_SUPPLY()) {
+            revert ProjectTokenMaxSupplyExceeded();
+        }
+
         // Transfer USDT from buyer directly to destination address
         usdtToken.safeTransferFrom(msg.sender, destinationAddress, usdtAmount);
 
@@ -207,6 +219,9 @@ contract TokenSale is ReentrancyGuard, AccessControl, Pausable {
     ) external onlyRole(ADMIN_ROLE) {
         if (_minPurchaseAmount == 0) {
             revert InvalidTimeRange();
+        }
+        if (_maxTokensPerWallet == 0) {
+            revert ZeroAmount();
         }
 
         minPurchaseAmount = _minPurchaseAmount;
